@@ -16,7 +16,7 @@ const shortenUrl = async function(req,res){
 
     const findUrl = await urlModel.findOne({longUrl: longUrl}).select({_id:0, urlCode:1,longUrl:1,shortUrl:1})
     if(findUrl)
-        return res.status(200).send({status: false, message: "short url already exists", data: findUrl}) 
+        return res.status(200).send({status: true, message: "short url already exists", data: findUrl}) 
 
     let short = shortId.generate(longUrl)
     let shortUrl = `localhost:3000/${short}`
