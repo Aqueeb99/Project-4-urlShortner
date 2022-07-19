@@ -14,14 +14,14 @@ const shortenUrl = async function (req, res) {
         if (!regUrl.test(longUrl))
             return res.status(400).send({ status: false, message: "please enter valid longUrl" })
 
-        const findUrl = await urlModel.findOne({ longUrl: longUrl }).select({ _id: 0, urlCode: 1, longUrl: 1, shortUrl: 1 })
+        const findUrl = await urlModel.findOne({ longUrl: longUrl }).select({ _id: 0, urlCode: 1, longUrl: 1, shortUrl: 1 })             // no need 
         if (findUrl)
             return res.status(200).send({ status: true, message: "short url is already generated", data: findUrl })
 
-        let short = shortId.generate(longUrl)
-        let shortUrl = `localhost:3000/${short}`
+        let urlCode = shortId.generate(longUrl)
+        let shortUrl = `localhost:3000/${urlCode}`
         let urlObj = {
-            "urlCode": short,
+            "urlCode": urlCode,
             "longUrl": longUrl,
             "shortUrl": shortUrl
         }
@@ -39,10 +39,10 @@ const getLongUrl = async function (req, res) {
         let urlCode = req.params.urlCode
 
         if (!urlCode)
-            return res.status(400).send({ status: false, message: "urlCode cannot be empty" })
+            return res.status(400).send({ status: false, message: "urlCode cannot be empty" })  // not working
 
         if (!shortId.isValid(urlCode))
-            return res.status(400).send({ status: false, message: "urlCode is invalid" })
+            return res.status(400).send({ status: false, message: "urlCode is invalid" })   //not working
 
         const findLongUrl = await urlModel.findOne({ urlCode: urlCode }).select({ longUrl: 1, _id: 0 })
 
