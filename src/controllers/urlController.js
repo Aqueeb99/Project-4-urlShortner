@@ -1,5 +1,8 @@
 const shortId = require('shortid')
 const urlModel = require("../models/urlModel")
+
+
+//==============================================radis setup======================================================
 const redis = require("redis");
 const { promisify } = require("util");
 
@@ -18,8 +21,11 @@ redisClient.on("connect", async function () {
 
 const SET_ASYNC = promisify(redisClient.SET).bind(redisClient);
 const GET_ASYNC = promisify(redisClient.GET).bind(redisClient);
-//==============================================radis setup======================================================
+//==============================================radis setup======================================================^
 
+
+
+//==============================================shorten URL======================================================
 const shortenUrl = async function (req, res) {
     try {
         const longUrl = req.body.longUrl
@@ -31,14 +37,24 @@ const shortenUrl = async function (req, res) {
 
         if (!regUrl.test(longUrl))
             return res.status(400).send({ status: false, message: "please enter valid longUrl" })
-
+   
+        //retriving from cache
+        let cahcedURLData = await GET_ASYNC(`${longUrl}`)
+        if (cahcedURLData) {
+            let urlObj = JSON.parse(cahcedURLData)
+            return res.status(200).send({ status: true, message: "short url is already present in cache", data: urlObj});
+        }
+        
         const findUrl = await urlModel.findOne({ longUrl: longUrl }).select({ _id: 0, urlCode: 1, longUrl: 1, shortUrl: 1 })
 
-        if (findUrl)
+        if (findUrl){
+            //in case of data is expired in cache but present in db
+            await SET_ASYNC(`${longUrl}`,86400,JSON.stringify(findUrl))
             return res.status(200).send({ status: true, message: "short url is already generated", data: findUrl })
+        }
 
-        let urlCode = shortId.generate(longUrl)
-        let shortUrl = `localhost:3000/${urlCode}`
+        let short = shortId.generate(longUrl)
+        let shortUrl = `http://localhost:3000/${short}`
         let urlObj = {
             "urlCode": urlCode,
             "longUrl": longUrl,
@@ -46,6 +62,9 @@ const shortenUrl = async function (req, res) {
         }
 
         await urlModel.create(urlObj)
+        
+        //saving in cache
+        await SET_ASYNC(`${longUrl}`,86400,JSON.stringify(urlObj))
 
         //=============================saving in cache
         await SET_ASYNC(`${urlObj.urlCode}`, JSON.stringify(urlObj))
@@ -56,29 +75,30 @@ const shortenUrl = async function (req, res) {
     }
 }
 
+//==================================================================getLongUrl=====================================================
 const getLongUrl = async function (req, res) {
     try {
         let urlCode = req.params.urlCode
         if (!shortId.isValid(urlCode))
             return res.status(400).send({ status: false, message: "urlCode is invalid" })
 
-        //=============================retriving from cache
+        //retriving from cache start
         let cahcedURLData = await GET_ASYNC(`${urlCode}`)
         if (cahcedURLData) {
             let urlObj = JSON.parse(cahcedURLData)
             console.log(urlObj.longUrl)
             return res.status(302).redirect(urlObj.longUrl);       //status code not changing
         }
-        else {
-            let findLongUrl = await urlModel.findOne({ urlCode: urlCode }).select({ longUrl: 1, _id: 0 })  //no need id
-            if (!findLongUrl)
-                return res.status(404).send({ status: false, message: "url not found for the given url code" })
-            await SET_ASYNC(`${urlCode}`, JSON.stringify(findLongUrl.longUrl))
-            return res.status(302).redirect(findLongUrl.longUrl);            // noresponse 
-        }
-    }
 
-    catch (err) {
+        const findLongUrl = await urlModel.findOne({ urlCode: urlCode }).select({ longUrl: 1, _id: 0, shortUrl:1, urlCode})
+
+        if (!findLongUrl)
+            return res.status(404).send({ status: false, message: "url not found for the given url code" })
+
+        await SET_ASYNC(`${urlCode}`,86400,JSON.stringify(findLongUrl))
+
+        return res.status(302).redirect(findLongUrl.longUrl);
+    } catch (err) {
         return res.status(500).send({ status: false, message: err.message })
     }
 }
