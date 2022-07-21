@@ -19,7 +19,7 @@ redisClient.on("connect", async function () {
     console.log("Connected to Redis..");
 });
 
-const SET_ASYNC = promisify(redisClient.SET).bind(redisClient);
+const SET_ASYNC = promisify(redisClient.SETEX).bind(redisClient);
 const GET_ASYNC = promisify(redisClient.GET).bind(redisClient);
 //===========================================================radis setup end======================================================^
 
