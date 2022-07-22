@@ -41,20 +41,20 @@ const shortenUrl = async function (req, res) {
         //retriving from cache
         let cahcedURLData = await GET_ASYNC(`${longUrl}`)
         if (cahcedURLData) {
-            let urlObj = JSON.parse(cahcedURLData)
-            return res.status(200).send({ status: true, message: "short url is already present in cache", data: urlObj});
+            let urlObj = JSON.parse(cahcedURLData)    //no need
+            return res.status(200).send({ status: true, message: "short url is already present in cache", data: urlObj});    
         }
         
         const findUrl = await urlModel.findOne({ longUrl: longUrl }).select({ _id: 0, urlCode: 1, longUrl: 1, shortUrl: 1 })
 
         if (findUrl){
             //in case of data is expired in cache but present in db
-            await SET_ASYNC(`${longUrl}`,86400,JSON.stringify(findUrl))
-            return res.status(200).send({ status: true, message: "short url is already generated", data: findUrl })
+            await SET_ASYNC(`${longUrl}`,20,JSON.stringify(findUrl))
+            return res.status(200).send({ status: true, message: "short url is already generated in db", data: findUrl })
         }
 
-        let short = shortId.generate(longUrl)
-        let shortUrl = `http://localhost:3000/${short}`
+        let urlCode = shortId.generate(longUrl)
+        let shortUrl = `http://localhost:3000/${urlCode}`
         let urlObj = {
             "urlCode": urlCode,
             "longUrl": longUrl,
@@ -64,10 +64,7 @@ const shortenUrl = async function (req, res) {
         await urlModel.create(urlObj)
         
         //saving in cache
-        await SET_ASYNC(`${longUrl}`,86400,JSON.stringify(urlObj))
-
-        //=============================saving in cache
-        await SET_ASYNC(`${urlObj.urlCode}`, JSON.stringify(urlObj))
+        await SET_ASYNC(`${longUrl}`,20,JSON.stringify(urlObj))
 
         return res.status(201).send({ status: true, data: urlObj })
     } catch (err) {
@@ -87,15 +84,15 @@ const getLongUrl = async function (req, res) {
         if (cahcedURLData) {
             let urlObj = JSON.parse(cahcedURLData)
             console.log(urlObj.longUrl)
-            return res.status(302).redirect(urlObj.longUrl);       //status code not changing
+            return res.status(302).redirect(urlObj.longUrl);       
         }
 
-        const findLongUrl = await urlModel.findOne({ urlCode: urlCode }).select({ longUrl: 1, _id: 0, shortUrl:1, urlCode})
+        const findLongUrl = await urlModel.findOne({ urlCode: urlCode }).select({ longUrl: 1, _id: 0, shortUrl:1, urlCode:1})   // 1
 
         if (!findLongUrl)
             return res.status(404).send({ status: false, message: "url not found for the given url code" })
 
-        await SET_ASYNC(`${urlCode}`,86400,JSON.stringify(findLongUrl))
+        await SET_ASYNC(`${urlCode}`,20,JSON.stringify(findLongUrl))
 
         return res.status(302).redirect(findLongUrl.longUrl);
     } catch (err) {
